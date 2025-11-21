@@ -1,8 +1,11 @@
 from flask import Flask, request, jsonify
 from get_recommendations import get_recommendation
 from cors_handling import _build_cors_preflight_response, _corsify_actual_response
-
+import copy
 app = Flask(__name__)
+
+last_body = {}
+last_response = None
 
 @app.route('/recommendations', methods=['POST', 'OPTIONS'])
 def recommendations():
@@ -24,7 +27,7 @@ def recommendations():
         data = request.get_json()
         
         # Extract hard_constraints, default to empty dict if not provided
-        hard_constraints = data.get('hard_constraints', {}) if data else {}
+        hard_constraints = data.get('hard_constraints', {}) if data else {}        
         
         # Call the get_recommendation function
         result = get_recommendation(hard_constraints)

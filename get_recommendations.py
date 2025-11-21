@@ -7,10 +7,21 @@ from data_processing.features_retrieval.retrieve_objects import get_objects_by_i
 from learning.model import AbnormalityModel
 from optimize.optimize import Optimizer
 from typing import Dict
+from utils.name_generator import ensure_names_for_ids
+from utils.recommendation_cache import get_cached_result, cache_result, has_seen_constraints
 
-random.seed(42)
+random.seed(40)
 
 def get_recommendation(hard_constraints: Dict = {}):
+    # Check cache first - if we've seen these exact hard constraints before, return cached result
+    cached_result = get_cached_result(hard_constraints)
+    if cached_result is not None:
+        print("Returning cached result for these hard constraints.")
+        return cached_result
+    
+    # If not in cache, compute the recommendation
+    print("Computing new recommendation (not found in cache).")
+    
     distances = get_distances()
     clients = get_clients()
     mas = get_mas()
@@ -34,6 +45,14 @@ def get_recommendation(hard_constraints: Dict = {}):
 
     clients_df, mas_df = data_processor.create_day_dataset(open_clients, open_mas, date)
 
+    # Generate and persist names for MAS and clients
+    ma_name_mappings = ensure_names_for_ids(mas_df["id"].tolist())
+    client_name_mappings = ensure_names_for_ids(clients_df["id"].tolist())
+    
+    # Add name columns to dataframes
+    mas_df["name"] = mas_df["id"].map(ma_name_mappings)
+    clients_df["name"] = clients_df["id"].map(client_name_mappings)
+
     # iterate over the mas_df and add a column "available_until" based on the free_ma_ids in the form {"id": "123", "until": "2025-01-01"}
     # First, generate the column with the correct values and then add it to the dataframe
     mas_df["available_until"] = [date + timedelta(days=random.randint(1, 10)) for _ in range(len(mas_df))]
@@ -49,7 +68,15 @@ def get_recommendation(hard_constraints: Dict = {}):
 
     if objective_value is not None:
         results = optimizer.process_results()
-        return {"assignment_info": results, "mas": mas_df.to_dict(orient="records"), "clients": clients_df.to_dict(orient="records")}
+        output = {"assignment_info": results, "mas": mas_df.to_dict(orient="records"), "clients": clients_df.to_dict(orient="records")}
+        
+        # Cache the result with its associated hard constraints
+        # Only cache if we haven't seen these constraints before
+        if not has_seen_constraints(hard_constraints):
+            cache_result(hard_constraints, output)
+            print("Cached new result for these hard constraints.")
+        
+        return output
     else:
         print("No feasible solution found.")
         # return {"assignment_info": None, "mas": mas_df.to_dict(orient="records"), "clients": clients_df.to_dict(orient="records")}
