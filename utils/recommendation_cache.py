@@ -93,12 +93,19 @@ def get_cached_result(hard_constraints: Dict) -> Optional[Dict]:
     """
     Retrieve cached result for the given hard constraints.
     Returns None if not found.
+    Updates last_access timestamp and moves entry to end of list.
     """
     cache = _load_cache()
     constraint_hash = _hash_hard_constraints(hard_constraints)
     
-    for entry in cache:
+    for i, entry in enumerate(cache):
         if entry.get("constraint_hash") == constraint_hash:
+            # Update last_access timestamp
+            entry["last_access"] = datetime.now().isoformat()
+            # Move entry to end of list
+            cache.pop(i)
+            cache.append(entry)
+            _save_cache(cache)
             return entry.get("output")
     
     return None
@@ -107,19 +114,27 @@ def get_cached_result(hard_constraints: Dict) -> Optional[Dict]:
 def cache_result(hard_constraints: Dict, output: Dict) -> None:
     """
     Cache a new result with its associated hard constraints.
-    Appends to the end of the cache list (newest changes).
+    If entry already exists, moves it to the end of the list and updates last_access.
+    Appends new entries to the end of the cache list (newest at the end).
     """
     cache = _load_cache()
     constraint_hash = _hash_hard_constraints(hard_constraints)
     normalized_constraints = _normalize_hard_constraints(hard_constraints)
+    current_time = datetime.now().isoformat()
     
     # Check if this exact constraint set already exists
-    for entry in cache:
+    for i, entry in enumerate(cache):
         if entry.get("constraint_hash") == constraint_hash:
             # Update existing entry
             entry["output"] = output
-            entry["cached_at"] = datetime.now().isoformat()
             entry["hard_constraints"] = normalized_constraints
+            entry["last_access"] = current_time
+            # Preserve cached_at if it exists, otherwise set it
+            if "cached_at" not in entry:
+                entry["cached_at"] = current_time
+            # Move entry to end of list
+            cache.pop(i)
+            cache.append(entry)
             _save_cache(cache)
             return
     
@@ -128,7 +143,8 @@ def cache_result(hard_constraints: Dict, output: Dict) -> None:
         "constraint_hash": constraint_hash,
         "hard_constraints": normalized_constraints,
         "output": output,
-        "cached_at": datetime.now().isoformat()
+        "cached_at": current_time,
+        "last_access": current_time
     }
     
     # Append to cache (newest at the end)

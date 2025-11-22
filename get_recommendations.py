@@ -84,7 +84,7 @@ def get_recommendation(hard_constraints: Dict = {}):
     
 if __name__ == "__main__":
     hard_constraints = {
-        "forced_assignments": [("29df0d1c-9248-4fb1-a201-153fc8eea8b1", '9b932fa7-df20-4361-99bc-b7947e69960e')],
+        # "forced_assignments": [("0785d40d-c3fa-48d0-9401-8beebcec5668", '7f0fc1be-3768-4bfa-bac3-a5da0f34b494')],
         # "forced_clients": ["0ba5e25a-e7de-4dee-aa1f-090160f6e380", "a29858e5-994d-4841-b038-ef5d6eecece7"],
     }
     output = get_recommendation(hard_constraints)
